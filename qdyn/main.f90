@@ -59,11 +59,16 @@ program main
   if (VERBOSE .and. DEBUG) VERBOSE = .false.
   ! If (still) verbose: change to stdout
   if (VERBOSE) FID_LOG = 6
-
+print*,"1"
   call init_mpi()
+  print*,"2"
   call init_log()
+  print*,"3"
   call read_main(pb)
+  print*,"4"
   call init_all(pb)
+    print*,"5"
   call solve(pb)
+    print*,"6"
 
 end program main

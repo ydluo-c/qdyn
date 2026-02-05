@@ -1,6 +1,7 @@
-derivs_all.o: diffusion_solver.o fault_stress.o friction.o friction_cns.o \
+derivs_all.o: diffusion_solver.o fault_stress.o friction.o friction_cns.o fluid_diffusion.o \
 	problem_class.o utils.o
 diffusion_solver.o: constants.o mesh.o problem_class.o
+fluid_diffusion.o: problem_class.o
 fault_stress.o: constants.o fftsg.o logger.o mesh.o okada.o parallel.o
 friction.o: logger.o problem_class.o
 friction_cns.o: constants.o problem_class.o

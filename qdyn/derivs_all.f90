@@ -29,6 +29,7 @@ subroutine derivs(time,yt,dydt,pb)
   use friction, only : dtheta_dt, RSF_derivs, compute_velocity_RSF
   use friction_cns, only : compute_velocity, CNS_derivs
   use diffusion_solver, only : update_PT
+  use fluid_diffusion, only : compute_P
   use utils, only : pack, unpack
 
   type(problem_type), intent(inout) :: pb
@@ -43,7 +44,8 @@ subroutine derivs(time,yt,dydt,pb)
   double precision, dimension(pb%mesh%nn) :: dummy1, dummy2
   double precision :: dtau_per, dt
 
-  logical :: vary_sigma = .false.
+  
+  integer :: ier
 
   ! SEISMIC: initialise vectors to zero. If unitialised, each compiler
   ! may produce different results depending on its conventions
@@ -56,8 +58,6 @@ subroutine derivs(time,yt,dydt,pb)
   dummy2 = 1d0
   tau_y = 0d0
 
-  ! Check if the normal stress is updated
-  vary_sigma = (pb%features%tp == 1) .or. (pb%features%stress_coupling == 1)
 
   call unpack(yt, theta, main_var, sigma, theta2, slip, pb)
 
@@ -77,6 +77,46 @@ subroutine derivs(time,yt,dydt,pb)
     sigma = sigma - pb%P
     dP_dt = pb%tp%dP_dt
   endif
+  
+  
+  
+  
+  
+  
+  ! If the fluid diffusion is asked
+  if (pb%features%fluid_diff == 1) then
+  
+    ! Calculate dt
+    dt = time - pb%t_prev
+    
+    sigma = sigma - pb%fluid_diff%P_temp
+    
+    ! Compute the pressure 
+    call compute_P(dt,pb,ier)
+!     print*,'sigma2',minval(sigma)
+    
+    ! Calculate P_dot_temp
+    dP_dt = pb%fluid_diff%P_dot_temp
+    ! if (time .gt. 100*86400.0) then
+!     print*,'P',pb%fluid_diff%P_temp
+!     stop
+!     endif 
+  endif
+  
+   ! If the permeability change is asked
+  if ((pb%features%var_k == 1).and.(pb%features%fluid_diff == 1)) then
+    
+    ! Calculate dkstar_dt
+    pb%var_k%dkstar_dt = -pb%V/pb%var_k%L1*(pb%var_k%kstar-pb%var_k%kmax)-1.0/pb%var_k%T1*(pb%var_k%kstar-pb%var_k%kmin)
+  
+  endif
+  
+  
+  
+  
+  
+  
+  
 
   if (pb%i_rns_law == 3) then
     ! SEISMIC: the CNS model is solved for stress, not for velocity, so we
@@ -106,14 +146,14 @@ subroutine derivs(time,yt,dydt,pb)
   ! compute shear stress rate from elastic interactions, for 0D, 1D & 2D
   ! SEISMIC: note the use of v instead of yt(2::pb%neqs)
   call compute_stress(dtau_dt, dsigma_dt, pb%kernel, v - pb%v_pl)
-
+ 
   !YD we may want to modify this part later to be able to
   !impose more complicated loading/pertubation
   !functions involved: problem_class/problem_type; input/read_main
   !                    initialize/init_field;  derivs_all/derivs
   ! periodic loading
   dtau_per = pb%Omper * pb%Aper * cos(pb%Omper*time)
-
+  
   ! Rate of change of slip is simply the velocity
   dslip = v
 
@@ -134,11 +174,12 @@ subroutine derivs(time,yt,dydt,pb)
    ! dtau/dt = ( k[Vlp - Vs] - eta*(dV/dtheta * dtheta/dt + dV/dsigma * dsigma/dt))
    !           / (1 + eta*dV/dtau)
    ! See [VdE], Section 3.2
+
    dmain_var =  (dtau_dt + dtau_per - pb%zimpedance * &
                 (dV_dtheta * dth_dt + dV_dsigma * (dsigma_dt - dP_dt))) / &
                 (1 + pb%zimpedance * dV_dtau)
 
-   call pack(dydt, dth_dt, dmain_var, dsigma_dt, dth2_dt, dslip, pb)
+   call pack(dydt, dth_dt, dmain_var, dsigma_dt, dth2_dt, dslip, pb,.TRUE.)
 
 end subroutine derivs
 

@@ -45,6 +45,11 @@ subroutine init_all(pb)
   if (pb%features%stress_coupling == 1 .and. pb%mesh%dim == 2) then
     pb%neqs = pb%neqs + 1
   endif
+  
+  ! If permeability change is asked for
+  if (pb%features%var_k == 1) then 
+    pb%neqs = pb%neqs + 1
+  endif
 
  ! dt_max & perturbation
  ! if periodic loading, set time step smaller than a fraction of loading period
@@ -83,6 +88,22 @@ subroutine init_all(pb)
   ! SEISMIC: initialise thermal pressurisation model (diffusion_solver.f90)
   allocate(pb%P(pb%mesh%nn))
   pb%P = 0d0
+  
+! If fluid diffusion 
+  if (pb%features%fluid_diff == 1) then
+    pb%P = pb%fluid_diff%P_a
+    pb%fluid_diff%P_temp = pb%P
+  endif
+  
+  ! If variable permeability
+  if (pb%features%var_k == 1) then
+    pb%var_k%kstar = pb%var_k%kmin + (pb%fluid_diff%permeability-pb%var_k%kmin) * exp(abs((pb%sigma-pb%P))/abs(pb%var_k%Snk))
+  endif
+
+  
+  
+  
+! If thermal pressurisation  
   if (pb%features%tp == 1) then
     allocate(pb%T(pb%mesh%nn))
     pb%T = 0d0

@@ -38,7 +38,7 @@ subroutine solve(pb)
 
   if (DEBUG) then
     write(msg, *) "update_field"
-    call log_debug(msg, pb%it)
+    call log_debug(msg, pb%it) 
   endif
 
   ! Before the first step, update field and write output (initial state)
@@ -48,6 +48,9 @@ subroutine solve(pb)
   if (.not. RESTART) call write_output(pb)
 
   iktotal=0
+  
+  
+  
   ! Time loop
   do while (pb%it /= pb%itstop)
     pb%it = pb%it + 1
@@ -57,15 +60,16 @@ subroutine solve(pb)
       call log_debug(msg, pb%it)
     endif
 
-    ! Do one integration step
-    call do_bsstep(pb)
+    ! Do one integration step 
+    call do_step(pb)
 
     if (DEBUG) then
       write(msg, *) "update_field"
       call log_debug(msg, pb%it)
     endif
 
-    ! Update field variables
+
+    ! Update field variables (slip, P...  depends on the model)
     call update_field(pb)
 
     if (DEBUG) then
@@ -104,7 +108,7 @@ end subroutine solve
 ! IMPORTANT NOTE : between pack/unpack pb%v & pb%theta are not up-to-date
 ! SEISMIC IMPORTANT NOTE: when the CNS model is used, pb%tau is not up-to-date
 !
-subroutine do_bsstep(pb)
+subroutine do_step(pb)
 
   use derivs_all
   use ode_bs
@@ -112,20 +116,46 @@ subroutine do_bsstep(pb)
   use ode_rk45_2, only: rkf45_d2
   use constants, only: SOLVER_TYPE
   use diffusion_solver, only: update_PT_final
+  use fluid_diffusion, only: compute_P
 
   type(problem_type), intent(inout) :: pb
 
   double precision, dimension(pb%neqs*pb%mesh%nn) :: yt, dydt, yt_scale
   double precision, dimension(pb%neqs*pb%mesh%nn) :: yt_prev
   double precision, dimension(pb%mesh%nn) :: main_var
-  integer :: ik, neqs
+  integer :: ik, neqs,ier
 
   neqs = pb%neqs * pb%mesh%nn
 
-  main_var = pb%tau
+  main_var = pb%tau ! written with shear traction instead of velocity
 
   call pack(yt, pb%theta, main_var, pb%sigma, pb%theta2, pb%slip, pb)
   yt_prev = yt
+
+
+! If fluid diffusion is asked, check the convergence of the FVM solver
+if (pb%features%fluid_diff == 1) then
+!     print*,'Time [0 1]:',pb%time/(2*365.25*86400)
+ !    print*,'Time (s):',pb%time
+!     print*,'Max V', maxval(pb%v)
+!     print*,'Max P', maxval(pb%P)
+    
+    ! Initialise ier to 1
+    ier = 1
+    do while (ier /=0)
+       
+        ! Try to compute the new pressure at the new time step
+        !
+        ! In case there was a mistake, half the time step
+       
+                call  compute_P(pb%dt_try,pb,ier)
+                if (ier==1) pb%dt_try = pb%dt_try/2
+    enddo
+endif
+
+
+
+
 
   ! SEISMIC: user-defined switch to use either (1) the Bulirsch-Stoer method, or
   ! the (2) Runge-Kutta-Fehlberg method
@@ -141,6 +171,10 @@ subroutine do_bsstep(pb)
     ! this update of derivatives is only needed to set up the scaling (yt_scale)
     call derivs(pb%time,yt,dydt,pb)
     yt_scale=dabs(yt)+dabs(pb%dt_try*dydt)
+    
+    
+    
+    
     ! One step
     call bsstep(yt,dydt,neqs,pb%time,pb%dt_try,pb%acc,yt_scale,pb%dt_did,pb%dt_next,pb,ik)
 
@@ -150,18 +184,27 @@ subroutine do_bsstep(pb)
     else
       pb%dt_try = pb%dt_next
     endif
+    
 
   elseif (SOLVER_TYPE == 2) then
+!     print*,'-------------------'
+!     print*,'dt_try',pb%dt_try
     ! Set-up Runge-Kutta solver
 
     pb%rk45%iflag = -2 ! Reset to one-step mode each call
     pb%t_prev = pb%time
 
     100 continue
+    
+    ! Initialise the next time step
+    pb%rk45%work(neqs+1) = pb%dt_try
 
     ! Call Runge-Kutta solver routine
     call rkf45_d( derivs_rk45, neqs, yt, pb%time, pb%tmax, &
                   pb%acc, pb%abserr, pb%rk45%iflag, pb%rk45%work, pb%rk45%iwork)
+
+      ! Get the next time step
+    pb%dt_try = pb%rk45%work(neqs+1)
 
     ! Basic error checking. See description of rkf45_d in ode_rk45.f90 for details
     select case (pb%rk45%iflag)
@@ -208,7 +251,7 @@ subroutine do_bsstep(pb)
   ! retreive the solution for slip velocity
   pb%tau = main_var
 
-end subroutine do_bsstep
+end subroutine do_step
 
 
 !=====================================================================
@@ -229,6 +272,16 @@ subroutine update_field(pb)
   ! SEISMIC: obtain P at the previous time step
   P = 0d0
   if (pb%features%tp == 1) P = pb%P
+  
+  
+   ! If there is fluid diffusion
+  if (pb%features%fluid_diff == 1) then
+    pb%P = pb%fluid_diff%P_temp
+    P = pb%P
+    !print*,'pb%P',pb%P(pb%mesh%nn/2-10:pb%mesh%nn/2+10)
+endif
+  
+  
 
   ! SEISMIC: in case of the CNS model, re-compute the slip velocity with
   ! the final value of tau, sigma, and porosity. Otherwise, use the standard
@@ -248,6 +301,15 @@ subroutine update_field(pb)
   else
     pb%vmaxglob = pb%v(ivmax)
   endif
+  
+  
+  ! If there is fluid diffusion
+  if (pb%features%fluid_diff == 1) then
+        pb%P = pb%fluid_diff%P_temp
+        !print*,'P',maxval( pb%P )
+  endif
+  
+  
 
 end subroutine update_field
 
@@ -332,6 +394,18 @@ subroutine init_rk45(pb)
   endif
 
   call pack(yt, pb%theta, main_var, pb%sigma, pb%theta2, pb%slip, pb)
+  
+! 
+! print*,'k',pb%fluid_diff%permeability
+! print*,'kstar',pb%var_k%kstar
+! stop
+
+  
+  
+  
+  
+  
+  
 
   call rkf45_d( derivs_rk45, pb%neqs*pb%mesh%nn, yt, pb%time, pb%time, &
                 pb%acc, pb%abserr, pb%rk45%iflag, pb%rk45%work, pb%rk45%iwork)

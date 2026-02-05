@@ -41,7 +41,9 @@ module problem_class
     character(len=16), dimension(:), allocatable :: fmt
     type(optr), dimension(:), allocatable :: objects_rup
   end type ox_type
-
+  
+  
+!#########################################################################################
   ! SEISMIC: structure that holds the CNS model parameters
   ! See input.f90 for a description of the parameters
   type cns_type
@@ -52,7 +54,7 @@ module problem_class
     integer :: N_creep=-1 ! Number of active creep mechanisms
   end type cns_type
   ! End of the CNS model structure
-
+!#########################################################################################
   ! SEISMIC: structure that holds the thermal pressurisation (TP) model parameters
   ! See input.f90 for a description of the parameters
   ! Spectral mesh parameters (Dlogl, lw_max, Nl) are hard-coded in mesh.f90
@@ -65,14 +67,37 @@ module problem_class
     double precision :: t_prev=0d0
   end type tp_type
   ! End of the TP model structure
-
+!#########################################################################################
+! SEISMIC: structure that holds the fluid diffusion model parameters
+  ! See input.f90 for a description of the parameters
+  ! Spectral mesh parameters (Dlogl, lw_max, Nl) are hard-coded in mesh.f90
+  type fluid_diff_type
+    type (spectral_mesh_type) :: mesh
+    double precision, dimension(:), allocatable :: &
+      rhof, beta, eta, phi, permeability,P_a,P_temp,P_dot_temp, permeability_x 
+    integer :: nb_source 
+     double precision, dimension(:), allocatable :: t_injection_beg, &
+     t_injection_end, Q
+     integer, dimension(:), allocatable :: index_injection
+  end type fluid_diff_type
+  ! End of the fluid diffusion model structure
+  !#########################################################################################
+! SEISMIC: structure that holds the variable permeability model parameters
+  ! See input.f90 for a description of the parameters
+  ! Spectral mesh parameters (Dlogl, lw_max, Nl) are hard-coded in mesh.f90
+  type var_k_type
+    type (spectral_mesh_type) :: mesh
+    double precision, dimension(:), allocatable :: kmin, kmax, L1, T1, kstar,Snk,dkstar_dt
+  end type var_k_type
+  ! End of the variable permeability model structure
+!#########################################################################################
   ! SEISMIC: requested features structure
   ! stress_coupling: normal stress variations at subduction interfaces
   ! tp: thermal pressurisation
   ! cohesion: time-dependent cohesion (CNS model)
   ! localisation: localisation of deformation (CNS model)
   type features_type
-    integer :: stress_coupling, tp, localisation
+    integer :: stress_coupling, tp, localisation, fluid_diff, var_k
   end type features_type
   ! End of features structure
 
@@ -169,6 +194,8 @@ module problem_class
     ! SEISMIC: added structures
     type (cns_type) :: cns_params
     type (tp_type) :: tp
+    type (fluid_diff_type) :: fluid_diff
+    type (var_k_type) :: var_k
     type (features_type) :: features
     type (rk45_type) :: rk45
     type (rk45_2_type) :: rk45_2

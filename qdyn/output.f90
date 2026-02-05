@@ -41,6 +41,12 @@ subroutine initialize_output(pb)
   if (pb%features%tp == 1) then
     nobj = nobj + 2
   endif
+  
+  
+  ! If fluid diffusion is requested: add 1 more objects to total
+  if (pb%features%fluid_diff == 1) then
+    nobj = nobj + 1
+  endif
 
   ! Overwrite number of objects to output
   pb%nobj = nobj
@@ -71,6 +77,10 @@ subroutine initialize_output(pb)
     if (pb%features%tp == 1) then
       pb%P_glob => pb%P
       pb%T_glob => pb%T
+    endif
+     ! If fluid diffusion is requested: P
+    if (pb%features%fluid_diff == 1) then
+      pb%P_glob => pb%P
     endif
     ! Max rupture stats
     pb%tau_max_glob => pb%tau_max
@@ -114,6 +124,11 @@ subroutine initialize_output(pb)
     pb%objects_glob(nbase+1)%v => pb%P_glob
     pb%objects_glob(nbase+2)%v => pb%T_glob
   endif
+   ! If fluid diffusion is requested, add P 
+  if (pb%features%fluid_diff == 1) then
+    ! [double vector] pressure, temperature
+    pb%objects_glob(nbase+1)%v => pb%P_glob
+  endif
 
   ! Assign local quantities (which need to be synchronised)
   ! Scalars do not need to be synchronised, so can be skipped
@@ -135,6 +150,11 @@ subroutine initialize_output(pb)
     ! [double vector] pressure, temperature
     pb%objects_loc(nbase+1)%v => pb%P
     pb%objects_loc(nbase+2)%v => pb%T
+  endif
+   ! If fluid diffusion is requested, add P 
+  if (pb%features%fluid_diff == 1) then
+    ! [double vector] pressure, temperature
+    pb%objects_loc(nbase+1)%v => pb%P
   endif
 
   ! Init ot, ox, screen
@@ -251,7 +271,7 @@ subroutine log_write(pb)
   endif
 
   ! Log message
-  write(msg, "(i7x,4(x,e11.3))")  &
+  write(msg, "(i7,4(x,e11.3))")  &
     pb%it, pb%dt_did, pb%time/YEAR, pb%vmaxglob, sigma_max_glob/1.0D6
   call log_msg(msg)
 
@@ -313,6 +333,11 @@ subroutine ot_init(pb)
   if (pb%features%tp == 1) then
     pb%ot%not = pb%ot%not + 2
     pb%ot%not_vmax = pb%ot%not_vmax + 2
+  endif
+    ! If fluid diffusion is requested, add 1 more
+  if (pb%features%fluid_diff == 1) then
+    pb%ot%not = pb%ot%not + 1
+    pb%ot%not_vmax = pb%ot%not_vmax + 1
   endif
   ! Allocate space in array of pointers
   allocate(pb%ot%fmt(pb%ot%not))
@@ -409,6 +434,9 @@ subroutine ot_init(pb)
         if (pb%features%tp == 1) then
           write(id, "(a)") "# 12=P, 13=T"
         endif
+         if (pb%features%fluid_diff == 1) then
+          write(id, "(a)") "# 12=P"
+        endif
         write(id, "(a)") "# last=fault_label"
         close(id)
       endif 
@@ -421,6 +449,9 @@ subroutine ot_init(pb)
       write(FID_VMAX, "(a)") "# 1=step, 2=t, 3=ivmax, 4=v, 5=theta, 6=tau, 7=dtau_dt, 8=slip, 9=sigma"
       if (pb%features%tp == 1) then
         write(FID_VMAX, "(a)") "# 11=P, 12=T"
+      endif
+      if (pb%features%fluid_diff == 1) then
+        write(FID_VMAX, "(a)") "# 11=P"
       endif
       write(FID_VMAX, "(a)") "# last=fault_label"
       close(FID_VMAX)
@@ -496,6 +527,9 @@ subroutine ox_init(pb)
   if (pb%features%tp == 1) then
     pb%ox%nox = pb%ox%nox + 2
   endif
+    if (pb%features%fluid_diff == 1) then
+    pb%ox%nox = pb%ox%nox + 1
+  endif
   ! Allocate space for dynamic output that needs to be carried over
   allocate(pb%ox%objects_rup(pb%ox%nrup))
   ! Allocate space for the output format
@@ -546,6 +580,9 @@ subroutine ox_init(pb)
   pb%ox%header = '# step t x y z v theta tau tau_dot slip sigma fault_label'
   if (pb%features%tp == 1) then
     pb%ox%header = '# step t x y z v theta tau tau_dot slip sigma P T fault_label'
+  endif
+    if (pb%features%fluid_diff == 1) then
+    pb%ox%header = '# step t x y z v theta tau tau_dot slip sigma P fault_label'
   endif
 
   ! If ox_dyn is requested
@@ -1134,16 +1171,36 @@ subroutine write_ox_lines(unit, fmt, objects, nxout, nwout, pb)
         ! Write ox output quantity, do not advance to next line
         write(unit, fmt(iox+2), advance="no") objects(iox)%v(n)
       enddo
-      ! Add P/T if needed
+      ! Add P/T if needed 
+      ! There is a bug here? should be iox+3 and iox+4? (13 and 14 knowing that nbase is 12)
+      ! iox should be incremented by one for each column feature
+      ! fmt has length = 14, but the last element is the fault number 
       if (pb%features%tp == 1) then
         write(unit, fmt(iox+2+1), advance="no") objects(iox+1)%v(n)
         write(unit, fmt(iox+2+2), advance="no") objects(iox+2)%v(n)
+      endif
+      
+        ! Add P/T if needed
+      if (pb%features%fluid_diff == 1) then
+        !print*,'iox',iox
+!         print*,'pb%ox%nox',pb%ox%nox
+       !  print*,'iox',iox
+!         print*,'pb%ot%not',pb%ot%not
+!         print*,'pb%ox%fmt',pb%ox%fmt
+        write(unit, fmt(iox+2), advance="no") objects(iox+3)%v(n)
+        ! print*,'n',n
+!         print*,'objects(iox+1)%v',objects(iox+1)%v(n)
+
       endif
       ! Write fault number, advance to next line
       write(unit, fmt(k)) objects(1)%vi(n)
     enddo
   enddo
-
+  
+ !  print*,'nxout',nxout
+!   print*,'nwout',nwout
+!   print*,'objects(iox+1)%v',objects(11)%v
+  
 end subroutine write_ox_lines
 
 !=====================================================================
@@ -1325,6 +1382,12 @@ subroutine init_pb_global(pb)
       allocate(pb%P_glob(n), pb%T_glob(n))
       pb%P_glob = 0d0
       pb%T_glob = 0d0
+    endif
+    
+    ! If fluid diffusion is requested, allocate P
+    if (pb%features%fluid_diff == 1) then
+      allocate(pb%P_glob(n))
+      pb%P_glob = 0d0
     endif
 
     ! Allocate rupture max stats
