@@ -12,7 +12,6 @@ import sys
 from matplotlib import pyplot as plt
 import numpy as np
 import scipy
-import loadandprocessdata
 
 # Path to the python wrapper
 #path_wrapper = '/Users/pierre/Dropbox/OnGoingResearch/Fluid_and_earthquakes/Softwares/qdyn-release-3.0.0/qdyn/'

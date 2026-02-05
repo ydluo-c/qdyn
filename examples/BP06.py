@@ -11,10 +11,9 @@ Created on Thu Jun 19 12:22:43 2025
 import sys
 from matplotlib import pyplot as plt
 import numpy as np
-import loadandprocessdata
 
 # Path to the python wrapper
-path_wrapper = '/Users/pierre/Dropbox/OnGoingResearch/Fluid_and_earthquakes/Softwares/qdyn-release-3.0.0/qdyn/'
+path_wrapper = '/Users/pierre/Dropbox//Users/pierre/Dropbox/qdyn-release-3.0.0_hydro/qdyn/'
 sys.path.append(path_wrapper)
 
 from pyqdyn import *
@@ -129,7 +128,6 @@ p.run()
 #%% Regorganize based on the number of step
 # Read output
 p.read_output()
-f = loadandprocessdata.loadandprocessdata('/Users/pierre/Dropbox/OnGoingResearch/Fluid_and_earthquakes/Softwares/DemystiFicatioN_v07/problems/BP6QD_A_4000/','V','P')
 
 
 
