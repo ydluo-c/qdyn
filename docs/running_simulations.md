@@ -172,7 +172,6 @@ QDYN offers various optional simulation features. Set the following parameters t
 |   `MU_SS`   | Reference steady-state friction coefficient ($\mu^*$)        |     `0.6`     |
 |   `V_SS`    | Reference steady-state slip velocity ($V^*$; m/s)            |    `1e-6`     |
 |  `RNS_LAW`  | Type of rate-and-state friction law (see [Model assumptions](model_assumptions.html#fault-rheology)):<br />`0` = original formulation<br />`1` = with cut-off velocities `V1` and `V2`<br />`2` = regularized form |      `0`      |
-|    `V0`     | Fault slip velocity at the start of the simulation (m/s)     |   `1.01e-5`   |
 |    `V1`     | Cut-off velocity of direct effect ($V_1$; m/s)               |    `0.01`     |
 |    `V2`     | Cut-off velocity of evolution effect ($V_2$; m/s) which controls the transition from velocity-weakening to -strengthening when `A < B`. `V2` should be `<= V1`. |    `1e-7`     |
 | `THETA_LAW` | Type of evolution law for the state variable:<br />`0` = ageing law under the "no-healing" approximation<br />`1` = ageing law<br />`2` = slip law |      `1`      |
@@ -215,13 +214,13 @@ QDYN offers various optional simulation features. Set the following parameters t
 
 **Initial conditions:**
 
-| Parameter | Description                                                  |
-| :-------: | ------------------------------------------------------------ |
-|  `SIGMA`  | Initial effective normal stress (Pa). Remains constant unless `FEAT_STRESS_CPL = 1` or `FEAT_TP = 1` |
-|   `V_0`   | RSF only: initial slip velocity (m/s)                        |
-|  `TH_0`   | RSF only: initial state (s)                                  |
-|   `TAU`   | CNS model only: initial shear stress (Pa)                    |
-| `PHI_INI` | CNS model only: initial gouge porosity (-)                   |
+| Parameter | Description                                                  | Default value |
+| :-------: | ------------------------------------------------------------ | :-----------: |
+|  `SIGMA`  | Initial effective normal stress (Pa). Remains constant unless `FEAT_STRESS_CPL = 1` or `FEAT_TP = 1` |     `50e6`    |
+|   `V_0`   | RSF only: initial slip velocity (m/s)                        |   `1.01e-5`   |
+|  `TH_0`   | RSF only: initial state (s)                                  |     `1.0`     |
+|   `TAU`   | CNS model only: initial shear stress (Pa)                    |     `2e7`     |
+| `PHI_INI` | CNS model only: initial gouge porosity (-)                   |     `0.25`     |
 
 **Discretization and accuracy parameters:**
 
