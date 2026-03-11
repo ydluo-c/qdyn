@@ -8,17 +8,10 @@ Created on Thu Jun 19 12:22:43 2025
 
 
 # Imports
-import sys
-from matplotlib import pyplot as plt
 import numpy as np
+from matplotlib import pyplot as plt
 
-# Path to the python wrapper
-path_wrapper = '/Users/pierre/Dropbox//Users/pierre/Dropbox/qdyn-release-3.0.0_hydro/qdyn/'
-sys.path.append(path_wrapper)
-
-from pyqdyn import *
-import plot_functions as qdyn_plot
-
+from qdyn import qdyn
 
 # Initialise the wrapperclear
 p = qdyn()
@@ -107,29 +100,15 @@ p.settings(set_dict)
 # Make the mesh
 p.render_mesh()
 
-
-
-
-
 # Write input
 p.write_input()
 
 # Run the simulation
 p.run()
 
-
-
-#%
-
-
-
-
-
 #%% Regorganize based on the number of step
 # Read output
 p.read_output()
-
-
 
 x_unique = p.ox["x"].unique()
 sort_inds = np.argsort(x_unique)
@@ -140,13 +119,9 @@ v=np.reshape(v,(len(t_vals),len(x_unique)))
 theta = np.reshape(p.ox['theta'],(len(t_vals),len(x_unique)))
 P = np.reshape(p.ox['P'],(len(t_vals),len(x_unique)))
 
-
 plt.figure()
 plt.semilogy(x_unique,v[1,:])
 plt.show()
-
-
-
 
 plt.figure()
 plt.semilogy(t_vals/(86400*365.25),v[:,np.int16(N_half-1)])
@@ -155,17 +130,9 @@ plt.xlabel('Time (year)')
 plt.ylabel('Slip velocity (m/s)')
 plt.title('Slip Velocity at injection point')
 
-
 plt.figure()
 plt.plot(t_vals/(86400*365.25),np.log10(theta[:,np.int16(N_half-1)]))
 plt.xlim((0,1))
 plt.xlabel('Time (year)')
 plt.ylabel('Theta (s)')
 plt.title('Slip Velocity at injection point')
-
-# plt.figure()
-
-
-
-
-# plt.show()
