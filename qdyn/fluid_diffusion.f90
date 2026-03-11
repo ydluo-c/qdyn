@@ -5,8 +5,6 @@ use problem_class, only : problem_type
 ! FINITE VOLUME METHOD 
 !   
 !   Compute Pressure P for new time using implicit scheme
-!   TODO: change ds that is wrong for the FVM (it is the size of element, not the distance
-!   between the two points of FVM)
 !   global input: permeablity, P
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

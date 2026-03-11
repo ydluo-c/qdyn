@@ -38,7 +38,7 @@ subroutine solve(pb)
 
   if (DEBUG) then
     write(msg, *) "update_field"
-    call log_debug(msg, pb%it) 
+    call log_debug(msg, pb%it)
   endif
 
   ! Before the first step, update field and write output (initial state)
@@ -48,8 +48,6 @@ subroutine solve(pb)
   if (.not. RESTART) call write_output(pb)
 
   iktotal=0
-  
-  
   
   ! Time loop
   do while (pb%it /= pb%itstop)
@@ -67,7 +65,6 @@ subroutine solve(pb)
       write(msg, *) "update_field"
       call log_debug(msg, pb%it)
     endif
-
 
     ! Update field variables (slip, P...  depends on the model)
     call update_field(pb)
@@ -123,7 +120,7 @@ subroutine do_step(pb)
   double precision, dimension(pb%neqs*pb%mesh%nn) :: yt, dydt, yt_scale
   double precision, dimension(pb%neqs*pb%mesh%nn) :: yt_prev
   double precision, dimension(pb%mesh%nn) :: main_var
-  integer :: ik, neqs,ier
+  integer :: ik, neqs, ier
 
   neqs = pb%neqs * pb%mesh%nn
 
@@ -132,30 +129,17 @@ subroutine do_step(pb)
   call pack(yt, pb%theta, main_var, pb%sigma, pb%theta2, pb%slip, pb)
   yt_prev = yt
 
-
-! If fluid diffusion is asked, check the convergence of the FVM solver
-if (pb%features%fluid_diff == 1) then
-!     print*,'Time [0 1]:',pb%time/(2*365.25*86400)
- !    print*,'Time (s):',pb%time
-!     print*,'Max V', maxval(pb%v)
-!     print*,'Max P', maxval(pb%P)
-    
-    ! Initialise ier to 1
-    ier = 1
-    do while (ier /=0)
-       
-        ! Try to compute the new pressure at the new time step
-        !
-        ! In case there was a mistake, half the time step
-       
-                call  compute_P(pb%dt_try,pb,ier)
-                if (ier==1) pb%dt_try = pb%dt_try/2
-    enddo
-endif
-
-
-
-
+  ! If fluid diffusion is requested, check the convergence of the FVM solver
+  if (pb%features%fluid_diff == 1) then
+      ! Initialise ier to 1
+      ier = 1
+      do while (ier /= 0)
+          ! Try to compute the new pressure at the new time step
+          ! In case there was a mistake, half the time step
+          call  compute_P(pb%dt_try, pb, ier)
+          if (ier == 1) pb%dt_try = pb%dt_try / 2
+      enddo
+  endif
 
   ! SEISMIC: user-defined switch to use either (1) the Bulirsch-Stoer method, or
   ! the (2) Runge-Kutta-Fehlberg method
@@ -172,9 +156,6 @@ endif
     call derivs(pb%time,yt,dydt,pb)
     yt_scale=dabs(yt)+dabs(pb%dt_try*dydt)
     
-    
-    
-    
     ! One step
     call bsstep(yt,dydt,neqs,pb%time,pb%dt_try,pb%acc,yt_scale,pb%dt_did,pb%dt_next,pb,ik)
 
@@ -184,11 +165,8 @@ endif
     else
       pb%dt_try = pb%dt_next
     endif
-    
 
   elseif (SOLVER_TYPE == 2) then
-!     print*,'-------------------'
-!     print*,'dt_try',pb%dt_try
     ! Set-up Runge-Kutta solver
 
     pb%rk45%iflag = -2 ! Reset to one-step mode each call
@@ -273,15 +251,11 @@ subroutine update_field(pb)
   P = 0d0
   if (pb%features%tp == 1) P = pb%P
   
-  
    ! If there is fluid diffusion
   if (pb%features%fluid_diff == 1) then
     pb%P = pb%fluid_diff%P_temp
     P = pb%P
-    !print*,'pb%P',pb%P(pb%mesh%nn/2-10:pb%mesh%nn/2+10)
-endif
-  
-  
+  endif
 
   ! SEISMIC: in case of the CNS model, re-compute the slip velocity with
   ! the final value of tau, sigma, and porosity. Otherwise, use the standard
@@ -302,14 +276,10 @@ endif
     pb%vmaxglob = pb%v(ivmax)
   endif
   
-  
   ! If there is fluid diffusion
   if (pb%features%fluid_diff == 1) then
-        pb%P = pb%fluid_diff%P_temp
-        !print*,'P',maxval( pb%P )
+    pb%P = pb%fluid_diff%P_temp
   endif
-  
-  
 
 end subroutine update_field
 
@@ -394,18 +364,6 @@ subroutine init_rk45(pb)
   endif
 
   call pack(yt, pb%theta, main_var, pb%sigma, pb%theta2, pb%slip, pb)
-  
-! 
-! print*,'k',pb%fluid_diff%permeability
-! print*,'kstar',pb%var_k%kstar
-! stop
-
-  
-  
-  
-  
-  
-  
 
   call rkf45_d( derivs_rk45, pb%neqs*pb%mesh%nn, yt, pb%time, pb%time, &
                 pb%acc, pb%abserr, pb%rk45%iflag, pb%rk45%work, pb%rk45%iwork)

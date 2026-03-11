@@ -86,7 +86,6 @@ subroutine read_mesh_nodes(iin,m)
 
   allocate(m%x(m%nn), m%y(m%nn), m%z(m%nn), m%dip(m%nn), m%fault_label(m%nn), m%restart_slip(m%nn))
   do i=1,m%nn
-    !print*,'i',i
     read(iin,*) m%x(i),m%y(i),m%z(i),m%dip(i), m%fault_label(i), m%restart_slip(i)
   enddo
 

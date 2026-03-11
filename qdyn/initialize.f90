@@ -89,7 +89,7 @@ subroutine init_all(pb)
   allocate(pb%P(pb%mesh%nn))
   pb%P = 0d0
   
-! If fluid diffusion 
+  ! If fluid diffusion 
   if (pb%features%fluid_diff == 1) then
     pb%P = pb%fluid_diff%P_a
     pb%fluid_diff%P_temp = pb%P
@@ -97,13 +97,10 @@ subroutine init_all(pb)
   
   ! If variable permeability
   if (pb%features%var_k == 1) then
-    pb%var_k%kstar = pb%var_k%kmin + (pb%fluid_diff%permeability-pb%var_k%kmin) * exp(abs((pb%sigma-pb%P))/abs(pb%var_k%Snk))
+    pb%var_k%kstar = pb%var_k%kmin + (pb%fluid_diff%permeability - pb%var_k%kmin) * exp(abs((pb%sigma - pb%P)) / abs(pb%var_k%Snk))
   endif
 
-  
-  
-  
-! If thermal pressurisation  
+  ! If thermal pressurisation  
   if (pb%features%tp == 1) then
     allocate(pb%T(pb%mesh%nn))
     pb%T = 0d0

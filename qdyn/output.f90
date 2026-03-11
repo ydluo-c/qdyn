@@ -42,7 +42,6 @@ subroutine initialize_output(pb)
     nobj = nobj + 2
   endif
   
-  
   ! If fluid diffusion is requested: add 1 more objects to total
   if (pb%features%fluid_diff == 1) then
     nobj = nobj + 1
@@ -50,7 +49,6 @@ subroutine initialize_output(pb)
 
   ! Overwrite number of objects to output
   pb%nobj = nobj
-  
     
   ! Allocate containers
   allocate(pb%objects_glob(nobj))
@@ -1182,24 +1180,12 @@ subroutine write_ox_lines(unit, fmt, objects, nxout, nwout, pb)
       
         ! Add P/T if needed
       if (pb%features%fluid_diff == 1) then
-        !print*,'iox',iox
-!         print*,'pb%ox%nox',pb%ox%nox
-       !  print*,'iox',iox
-!         print*,'pb%ot%not',pb%ot%not
-!         print*,'pb%ox%fmt',pb%ox%fmt
         write(unit, fmt(iox+2), advance="no") objects(iox+3)%v(n)
-        ! print*,'n',n
-!         print*,'objects(iox+1)%v',objects(iox+1)%v(n)
-
       endif
       ! Write fault number, advance to next line
       write(unit, fmt(k)) objects(1)%vi(n)
     enddo
   enddo
-  
- !  print*,'nxout',nxout
-!   print*,'nwout',nwout
-!   print*,'objects(iox+1)%v',objects(11)%v
   
 end subroutine write_ox_lines
 

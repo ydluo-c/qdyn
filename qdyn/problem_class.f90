@@ -41,8 +41,6 @@ module problem_class
     character(len=16), dimension(:), allocatable :: fmt
     type(optr), dimension(:), allocatable :: objects_rup
   end type ox_type
-  
-  
 !#########################################################################################
   ! SEISMIC: structure that holds the CNS model parameters
   ! See input.f90 for a description of the parameters
@@ -68,26 +66,25 @@ module problem_class
   end type tp_type
   ! End of the TP model structure
 !#########################################################################################
-! SEISMIC: structure that holds the fluid diffusion model parameters
+  ! Structure that holds the fluid diffusion model parameters
   ! See input.f90 for a description of the parameters
   ! Spectral mesh parameters (Dlogl, lw_max, Nl) are hard-coded in mesh.f90
   type fluid_diff_type
     type (spectral_mesh_type) :: mesh
     double precision, dimension(:), allocatable :: &
-      rhof, beta, eta, phi, permeability,P_a,P_temp,P_dot_temp, permeability_x 
+      rhof, beta, eta, phi, permeability, P_a, P_temp,P_dot_temp, permeability_x 
     integer :: nb_source 
-     double precision, dimension(:), allocatable :: t_injection_beg, &
-     t_injection_end, Q
-     integer, dimension(:), allocatable :: index_injection
+    double precision, dimension(:), allocatable :: t_injection_beg, t_injection_end, Q
+    integer, dimension(:), allocatable :: index_injection
   end type fluid_diff_type
   ! End of the fluid diffusion model structure
-  !#########################################################################################
-! SEISMIC: structure that holds the variable permeability model parameters
+!#########################################################################################
+  ! Structure that holds the variable permeability model parameters
   ! See input.f90 for a description of the parameters
   ! Spectral mesh parameters (Dlogl, lw_max, Nl) are hard-coded in mesh.f90
   type var_k_type
     type (spectral_mesh_type) :: mesh
-    double precision, dimension(:), allocatable :: kmin, kmax, L1, T1, kstar,Snk,dkstar_dt
+    double precision, dimension(:), allocatable :: kmin, kmax, L1, T1, kstar, Snk, dkstar_dt
   end type var_k_type
   ! End of the variable permeability model structure
 !#########################################################################################

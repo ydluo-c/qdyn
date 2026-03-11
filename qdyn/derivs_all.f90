@@ -43,8 +43,6 @@ subroutine derivs(time,yt,dydt,pb)
   double precision, dimension(pb%mesh%nn) :: tau_y, dP_dt, dV_dsigma
   double precision, dimension(pb%mesh%nn) :: dummy1, dummy2
   double precision :: dtau_per, dt
-
-  
   integer :: ier
 
   ! SEISMIC: initialise vectors to zero. If unitialised, each compiler
@@ -78,12 +76,7 @@ subroutine derivs(time,yt,dydt,pb)
     dP_dt = pb%tp%dP_dt
   endif
   
-  
-  
-  
-  
-  
-  ! If the fluid diffusion is asked
+  ! If the fluid diffusion is requested
   if (pb%features%fluid_diff == 1) then
   
     ! Calculate dt
@@ -92,31 +85,19 @@ subroutine derivs(time,yt,dydt,pb)
     sigma = sigma - pb%fluid_diff%P_temp
     
     ! Compute the pressure 
-    call compute_P(dt,pb,ier)
-!     print*,'sigma2',minval(sigma)
+    call compute_P(dt, pb, ier)
     
     ! Calculate P_dot_temp
     dP_dt = pb%fluid_diff%P_dot_temp
-    ! if (time .gt. 100*86400.0) then
-!     print*,'P',pb%fluid_diff%P_temp
-!     stop
-!     endif 
+
   endif
   
    ! If the permeability change is asked
-  if ((pb%features%var_k == 1).and.(pb%features%fluid_diff == 1)) then
-    
+  if ((pb%features%var_k == 1) .and. (pb%features%fluid_diff == 1)) then
     ! Calculate dkstar_dt
-    pb%var_k%dkstar_dt = -pb%V/pb%var_k%L1*(pb%var_k%kstar-pb%var_k%kmax)-1.0/pb%var_k%T1*(pb%var_k%kstar-pb%var_k%kmin)
-  
+    pb%var_k%dkstar_dt = &
+      -pb%V / pb%var_k%L1 * (pb%var_k%kstar - pb%var_k%kmax) - 1.0 / pb%var_k%T1 * (pb%var_k%kstar - pb%var_k%kmin)
   endif
-  
-  
-  
-  
-  
-  
-  
 
   if (pb%i_rns_law == 3) then
     ! SEISMIC: the CNS model is solved for stress, not for velocity, so we
@@ -179,7 +160,7 @@ subroutine derivs(time,yt,dydt,pb)
                 (dV_dtheta * dth_dt + dV_dsigma * (dsigma_dt - dP_dt))) / &
                 (1 + pb%zimpedance * dV_dtau)
 
-   call pack(dydt, dth_dt, dmain_var, dsigma_dt, dth2_dt, dslip, pb,.TRUE.)
+   call pack(dydt, dth_dt, dmain_var, dsigma_dt, dth2_dt, dslip, pb, .TRUE.)
 
 end subroutine derivs
 

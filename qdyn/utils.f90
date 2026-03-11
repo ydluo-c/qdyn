@@ -22,7 +22,7 @@ contains
 ! dv/dt or dtau/dt = dydt(2::pb%neqs)
 ! + feature specific variables
 !===============================================================================
-subroutine pack(yt, theta, main_var, sigma, theta2, slip, pb,ideriv)
+subroutine pack(yt, theta, main_var, sigma, theta2, slip, pb, ideriv)
 
   type(problem_type), intent(inout) :: pb
   double precision, dimension(pb%neqs*pb%mesh%nn), intent(out) :: yt
@@ -35,28 +35,15 @@ subroutine pack(yt, theta, main_var, sigma, theta2, slip, pb,ideriv)
   ! pb%neqs is defined in problem_class.f90
   nmax = pb%neqs*pb%mesh%nn ! The number of equation for the time solver
   
-  
-  ! Define the indices of yt and dydt based on which
-  ! features are requested (defined in input file)
- 
-  
-  
-  
-  ! Remove this 
-  !ind_localisation = ind_stress_coupling + pb%features%localisation
-  !ind_tp = ind_localisation + pb%features%tp
-
- ! This is ok
   yt(1:nmax:pb%neqs) = theta
   yt(2:nmax:pb%neqs) = main_var
-  yt(3:nmax:pb%neqs) = slip ! Slip is calculated in the time solver? 
+  yt(3:nmax:pb%neqs) = slip
 
-
-! initialise the index to 3 because of the first three main variables
-ind =3
-! For each features that need ODE solver
+  ! initialise the index to 3 because of the first three main variables
+  ind = 3
+  ! For each features that need ODE solver
   if (pb%features%stress_coupling == 1) then
-  ind = ind + 1
+    ind = ind + 1
     yt(ind:nmax:pb%neqs) = sigma
   endif
   if (pb%features%localisation == 1) then
@@ -66,7 +53,7 @@ ind =3
   
    ! Add for the permeability change. Be careful because pack and unpack are used for both yt and dydt.
   if (pb%features%var_k == 1) then
-  ind = ind + 1
+    ind = ind + 1
     ! If the optional argument is given
     if (present(ideriv)) then
         if (ideriv) then
@@ -85,7 +72,7 @@ end subroutine pack
 !===============================================================================
 ! Helper routine to unpack variables from solver
 !===============================================================================
-subroutine unpack(yt, theta, main_var, sigma, theta2, slip, pb,ideriv)
+subroutine unpack(yt, theta, main_var, sigma, theta2, slip, pb, ideriv)
 
   type(problem_type), intent(inout) :: pb
   double precision, dimension(pb%neqs*pb%mesh%nn), intent(in) :: yt
@@ -101,7 +88,7 @@ subroutine unpack(yt, theta, main_var, sigma, theta2, slip, pb,ideriv)
   main_var = yt(2:nmax:pb%neqs)
   slip = yt(3:nmax:pb%neqs)
 
-! initialise the index to 3 because of the first three main variable
+  ! initialise the index to 3 because of the first three main variable
   ind = 3 
   ! For each features that need ODE solver
   if (pb%features%stress_coupling == 1) then
@@ -111,16 +98,16 @@ subroutine unpack(yt, theta, main_var, sigma, theta2, slip, pb,ideriv)
     sigma = pb%sigma
   endif
   if (pb%features%localisation == 1) then
-  ind = ind + 1 
+    ind = ind + 1 
     theta2 = yt(ind:nmax:pb%neqs)
   else
     theta2 = 0d0
   endif
   
   
-    ! Add for the permeability change. Be careful because pack and unpack are used for both yt and dydt.
+  ! Add for the permeability change. Be careful because pack and unpack are used for both yt and dydt.
   if (pb%features%var_k == 1) then
-  ind = ind + 1
+    ind = ind + 1
     if (present(ideriv)) then
         if (ideriv) then
             pb%var_k%dkstar_dt = yt(ind:nmax:pb%neqs)

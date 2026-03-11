@@ -53,8 +53,6 @@ subroutine read_main(pb)
   pb%ivmax_fault = 0
   pb%vmax_fault = 0d0
 
-
-
   ! SEISMIC: various simulation features can be turned on (1) or off (0)
   if (pb%i_rns_law == 3) then
     read(FID_IN, *) pb%cns_params%N_creep
@@ -70,28 +68,25 @@ subroutine read_main(pb)
   read(FID_IN, *) pb%DYN_M, pb%DYN_th_on, pb%DYN_th_off
   read(FID_IN, *) FAULT_TYPE, SOLVER_TYPE
   
-  
-  
-! In case of fluid diffusion, read the number of source
-if (pb%features%fluid_diff==1) then
-    read(FID_IN, *) pb%fluid_diff%nb_source
-    ! If there are some source, allocate and read the associated parameters
-    if (pb%fluid_diff%nb_source>=1) then
-        ! Allocate the arrays
-        allocate(pb%fluid_diff%t_injection_beg(pb%fluid_diff%nb_source),  &
-                 pb%fluid_diff%t_injection_end(pb%fluid_diff%nb_source),  &
-                 pb%fluid_diff%index_injection(pb%fluid_diff%nb_source),  &
-                 pb%fluid_diff%Q(pb%fluid_diff%nb_source))
-        
-        ! Read the parameters
-        read(FID_IN, *) pb%fluid_diff%Q
-        read(FID_IN, *) pb%fluid_diff%index_injection
-        read(FID_IN, *) pb%fluid_diff%t_injection_beg
-        read(FID_IN, *) pb%fluid_diff%t_injection_end
-        
-    endif
-endif
-  
+  ! In case of fluid diffusion, read the number of source
+  if (pb%features%fluid_diff == 1) then
+      read(FID_IN, *) pb%fluid_diff%nb_source
+      ! If there are some source, allocate and read the associated parameters
+      if (pb%fluid_diff%nb_source>=1) then
+          ! Allocate the arrays
+          allocate( pb%fluid_diff%t_injection_beg(pb%fluid_diff%nb_source),  &
+                    pb%fluid_diff%t_injection_end(pb%fluid_diff%nb_source),  &
+                    pb%fluid_diff%index_injection(pb%fluid_diff%nb_source),  &
+                    pb%fluid_diff%Q(pb%fluid_diff%nb_source))
+          
+          ! Read the parameters
+          read(FID_IN, *) pb%fluid_diff%Q
+          read(FID_IN, *) pb%fluid_diff%index_injection
+          read(FID_IN, *) pb%fluid_diff%t_injection_beg
+          read(FID_IN, *) pb%fluid_diff%t_injection_end
+          
+      endif
+  endif
   
   call log_msg("  Flags input complete")
 
@@ -257,9 +252,6 @@ endif
       pb%theta2(i) = 0d0
     end do
   endif
-  
-  
-
 
   ! End reading localisation model parameters
   ! </SEISMIC>
@@ -289,13 +281,10 @@ endif
     end do
   endif
   
-   ! End reading TP model parameters
+  ! End reading TP model parameters
   ! </SEISMIC>
 
-
-
-
-!#########################################################################################
+  !#########################################################################################
   ! Read input parameters for the fluid diffusion model. 
   if (pb%features%fluid_diff == 1) then
 
@@ -324,22 +313,12 @@ endif
     end do
   endif
   
-! print*,'pb%var_k%kmin(i)',pb%var_k%kmin
-! print*,'pb%var_k%kmax(i)',pb%var_k%kmax
-! print*,'pb%var_k%L1(i)',pb%var_k%L1
-! print*,'pb%var_k%T1(i)',pb%var_k%T1
-! print*,'pb%var_k%Snk(i)',pb%var_k%Snk
-!   stop
   !#########################################################################################
-
-  
  
   ! CRP: Instead, call read_mesh_nodes for all mesh types so the fault label can
   ! be written in the outputs for all fault dimensionalities
 
   call read_mesh_nodes(FID_IN, pb%mesh)
-
-
 
   ! Overwrite slip if restart with time and slip of last simulation
   allocate(pb%slip(n))
