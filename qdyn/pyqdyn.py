@@ -14,10 +14,9 @@ import re
 import subprocess
 
 import numpy as np
-from scipy.optimize import root
 import pandas as pd
 from pandas import read_csv
-
+from scipy.optimize import root
 
 # import antigravity	# xkcd.com/353/
 
@@ -85,7 +84,9 @@ class qdyn:
 
         # Optional simulation features
         set_dict["FEAT_STRESS_COUPL"] = 0	# Normal stress coupling
-        set_dict["FEAT_TP"] = 0				# Thermal pressurisation
+        set_dict["FEAT_TP"] = 0 	        # Thermal pressurisation
+        set_dict["FEAT_FLUID_DIFF"] = 0		# Fluid diffusion
+        set_dict["FEAT_VAR_K"] = 0		    # Variable permeability
         set_dict["FEAT_LOCALISATION"] = 0	# Gouge zone localisation of strain (CNS only)
         set_dict["RESTART_STEP"] = 0        # Restart step of the simulation [-]
         set_dict["RESTART_TIME"] = 0        # Restart time of the simulation [s]
@@ -151,6 +152,29 @@ class qdyn:
             "P_A": 0.0,							# Ambient fluid pressure [Pa]
             "T_A": 293.0,						# Ambient temperature [K]
             "DILAT_FACTOR": 0.0,                # Factor > 0 to control amount of dilatancy hardening
+        }
+
+        # Fluid diffusion model 
+        set_dict["SET_DICT_FLUID_DIFF"] = {
+            "RHOF": 2.16e6,						# Density Fluid  TODO: this value doesn't look right...
+            "BETA": 2e-9,						# Bulk compressibility (fluid + pore) [1/Pa]
+            "ETA": 2e-4,						# Fluid dynamic viscosity [Pa s]
+            "PHI": 2e-4,                        # Porosity [-]
+            "PERMEABILITY": 1e-14,              # Permeability  TODO: units?
+            "P_A": 0.0,							# Ambient fluid pressure [Pa]
+            "nb_source": 1,                     # Number of source (only one for now)
+            "rate_injection":  [1.25e-6],       # Injection rate [m/s]
+            "index_injection": [1000],          # Index of the fault where injection is performed (for FORTRAN NOT PYTHON)  TODO: what does this mean?
+            "t_injection_beg": [0.0],           # Beginning time of injection [s]
+            "t_injection_end": [100.0*86400.0]  # End time of injection [s]
+        }
+        
+        set_dict["SET_DICT_VAR_K"] = {
+            "Lk": 1.0,
+            "Tk": 1000.0,
+            "kmin": 1e-13,      
+            "kmax": 1e-15,
+            "Snk": 1e6,
         }
 
         # Benjamin Idini's damage model
@@ -249,6 +273,8 @@ class qdyn:
         mesh_params_creep = ("A", "N", "M")
         mesh_params_localisation = ("LOCALISATION", "PHI_INI_BULK")
         mesh_params_TP = ("RHOC", "BETA", "ETA", "HALFW", "K_T", "K_P", "LAM", "P_A", "T_A", "DILAT_FACTOR")
+        mesh_params_fluid_diff = ( "RHOF", "BETA", "ETA", "PHI", "PERMEABILITY", "P_A")
+        mesh_params_var_k = ("Tk", "Lk", "Snk", "kmin", "kmax")
 
         mesh_dict = {}
 
@@ -274,7 +300,6 @@ class qdyn:
                 assert settings["SET_DICT_CNS"].get("TAU"), "TAU has not been specified"
                 # Copy TAU from the CNS dictionary
                 settings["TAU"] = settings["SET_DICT_CNS"]["TAU"]
-            
 
         # Populate mesh with general settings
         for param in mesh_params_general:
@@ -311,7 +336,15 @@ class qdyn:
         if settings["FEAT_TP"] == 1:
             for param in mesh_params_TP:
                 mesh_dict[param] = np.ones(N)*settings["SET_DICT_TP"][param]
-
+                
+        if settings["FEAT_FLUID_DIFF"] == 1:
+            for param in mesh_params_fluid_diff:
+                mesh_dict[param] = np.ones(N)*settings["SET_DICT_FLUID_DIFF"][param]
+                
+        if settings["FEAT_VAR_K"] == 1:
+            for param in mesh_params_var_k:
+                mesh_dict[param] = np.ones(N)*settings["SET_DICT_VAR_K"][param]
+                
         # Mesh XYZ coordinates (and dip angle)
         mesh_dict["X"] = np.zeros(N)
         mesh_dict["Y"] = np.zeros(N)
@@ -571,7 +604,7 @@ class qdyn:
                 assert not (N_creep == -1), "The number of creep mechanisms was not set properly. This value should be determined in render_mesh()"
                 input_str += "%u%s N_creep\n" % (N_creep, delimiter)
 
-            input_str += "%u %u %u%s stress_coupling, thermal press., localisation\n" % (settings["FEAT_STRESS_COUPL"], settings["FEAT_TP"], settings["FEAT_LOCALISATION"], delimiter)
+            input_str += "%u %u %u %u %u%s stress_coupling, thermal press.,fluid diffusion, variable k, localisation\n" % (settings["FEAT_STRESS_COUPL"], settings["FEAT_TP"], settings["FEAT_FLUID_DIFF"], settings["FEAT_VAR_K"], settings["FEAT_LOCALISATION"], delimiter)
             input_str += "%u %u %u %u %u %u %u %u %u %u%s ntout_log, ntout_ot, ntout_ox, nt_coord, nxout, nwout, nxout_DYN, nwout_DYN, ox_seq, ox_DYN\n" % (settings["NTOUT_LOG"], settings["NTOUT_OT"], settings["NTOUT_OX"], settings["IC"]+1, settings["NXOUT_OX"], settings["NWOUT_OX"], settings["NXOUT_DYN"], settings["NWOUT_DYN"], settings["OX_SEQ"], settings["OX_DYN"], delimiter)
             input_str += "%.15g %.15g %.15g %.15g %.15g %.15g%s beta, smu, lambda, v_th\n" % (settings["VS"], settings["MU"], settings["LAM"], settings["D"], settings["HD"], settings["V_TH"], delimiter)
             input_str += "%.15g %.15g%s Tper, Aper\n" % (settings["TPER"], settings["APER"], delimiter)
@@ -586,6 +619,38 @@ class qdyn:
                 for j in range(settings["NX"]):
                     n = i*settings["NX"] + j
                     iloc[n] = j + i*settings["NX"] + nnLocal
+
+            # Check if injection is required
+            if settings["FEAT_FLUID_DIFF"] == 1:
+                # Write the number of source 
+                input_str += "%u%s nb_source\n" % (settings["SET_DICT_FLUID_DIFF"]["nb_source"], delimiter)
+                
+                # If the number of source is greater than one
+                if settings["SET_DICT_FLUID_DIFF"]["nb_source"] >= 1:
+
+                    # Write the injection rate
+                    for j in range(settings["SET_DICT_FLUID_DIFF"]["nb_source"]):
+                        input_str += "%.15g %s" % (settings["SET_DICT_FLUID_DIFF"]["rate_injection"][j], delimiter)
+                    # Injection rate
+                    input_str += "rate_injection %s\n" % (delimiter)
+                    
+                    # Write the index of injection
+                    for j in range(settings["SET_DICT_FLUID_DIFF"]["nb_source"]):
+                        input_str += "%.15g %s" % (settings["SET_DICT_FLUID_DIFF"]["index_injection"][j], delimiter)
+                    # Injection index
+                    input_str += "index_injection %s\n" % (delimiter)
+                    
+                    # Write the beginning time of injection
+                    for j in range(settings["SET_DICT_FLUID_DIFF"]["nb_source"]):
+                        input_str += "%.15g %s" % (settings["SET_DICT_FLUID_DIFF"]["t_injection_beg"][j], delimiter)
+                    # Start injection 
+                    input_str += "t_injection_beg %s\n" % (delimiter)
+                    
+                    # Write the end time of injection
+                    for j in range(settings["SET_DICT_FLUID_DIFF"]["nb_source"]):
+                        input_str += "%.15g %s" % (settings["SET_DICT_FLUID_DIFF"]["t_injection_end"][j], delimiter)
+                    # End injection 
+                    input_str += "t_injection_end %s\n" % (delimiter)
 
             # Check for fault rheology model
             if settings["FRICTION_MODEL"] == "CNS":
@@ -618,6 +683,16 @@ class qdyn:
             if settings["FEAT_TP"] == 1:
                 for i in range(nloc):
                     input_str += "%.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g\n" % (mesh["RHOC"][iloc[i]], mesh["BETA"][iloc[i]], mesh["ETA"][iloc[i]], mesh["HALFW"][iloc[i]], mesh["K_T"][iloc[i]], mesh["K_P"][iloc[i]], mesh["LAM"][iloc[i]], mesh["P_A"][iloc[i]], mesh["T_A"][iloc[i]], mesh["DILAT_FACTOR"][iloc[i]])
+
+            # Check if fluid diffusion is requested
+            if settings["FEAT_FLUID_DIFF"] == 1:
+                 for i in range(nloc):
+                     input_str += "%.15g %.15g %.15g %.15g %.15g %.15g\n" % (mesh["RHOF"][iloc[i]], mesh["BETA"][iloc[i]], mesh["ETA"][iloc[i]], mesh["PHI"][iloc[i]], mesh["PERMEABILITY"][iloc[i]], mesh["P_A"][iloc[i]])
+
+            # Check if variable permeability is requested
+            if settings["FEAT_VAR_K"] == 1:
+                for i in range(nloc):
+                    input_str += "%.15g %.15g %.15g %.15g %.15g\n" % (mesh["Tk"][iloc[i]], mesh["Lk"][iloc[i]], mesh["Snk"][iloc[i]], mesh["kmin"][iloc[i]], mesh["kmax"][iloc[i]])
 
             # Add mesh grid location information + restart_slip values
             for i in range(nloc):
@@ -750,6 +825,9 @@ class qdyn:
         if self.set_dict["FEAT_TP"] == 1:
             nheaders_ot += 1
             quants_ot += ("P", "T")
+        if self.set_dict["FEAT_FLUID_DIFF"] == 1:
+             nheaders_ot += 1
+             quants_ot += ("P",)
         quants_ot += ("fault_label",)
 
         # Vmax
@@ -758,12 +836,21 @@ class qdyn:
         if self.set_dict["FEAT_TP"] == 1:
             nheaders_vmax += 1
             quants_vmax += ("P", "T")
+            
+        if self.set_dict["FEAT_FLUID_DIFF"] == 1:
+            nheaders_vmax += 1
+            quants_vmax += ("P",)
+            
         quants_vmax += ("fault_label",)
 
         # Standard snapshots (ox)
         quants_ox = ("step", "t", "x", "y", "z", "v", "theta", "tau", "tau_dot", "slip", "sigma")
         if self.set_dict["FEAT_TP"] == 1:
             quants_ox += ("P", "T")
+            
+        if self.set_dict["FEAT_FLUID_DIFF"] == 1:
+            quants_ox += ("P",)
+            
         quants_ox += ("fault_label",)
         
         # Fault time-series
@@ -825,7 +912,7 @@ class qdyn:
             if path_output!= None:
                 filename_ox= path_output + filename_ox
 
-            data_ox = read_csv(filename_ox, header=None, names=quants_ox, sep="\s+", comment="#")
+            data_ox = read_csv(filename_ox, header=None, names=quants_ox, sep="\s+", comment="#",low_memory=False)
 
             # Store snapshot data in self.ox
             self.ox = data_ox

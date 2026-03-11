@@ -59,7 +59,6 @@ program main
   if (VERBOSE .and. DEBUG) VERBOSE = .false.
   ! If (still) verbose: change to stdout
   if (VERBOSE) FID_LOG = 6
-
   call init_mpi()
   call init_log()
   call read_main(pb)

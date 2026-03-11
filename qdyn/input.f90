@@ -57,7 +57,7 @@ subroutine read_main(pb)
   if (pb%i_rns_law == 3) then
     read(FID_IN, *) pb%cns_params%N_creep
   endif
-  read(FID_IN, *) pb%features%stress_coupling, pb%features%tp, pb%features%localisation
+  read(FID_IN, *) pb%features%stress_coupling, pb%features%tp, pb%features%fluid_diff,pb%features%var_k , pb%features%localisation
   read(FID_IN, *) pb%ntout_log, pb%ot%ntout, pb%ox%ntout, pb%ot%ic, pb%ox%nxout, pb%ox%nwout, &
              pb%ox%nxout_dyn, pb%ox%nwout_dyn, pb%ox%i_ox_seq, pb%ox%i_ox_dyn
   read(FID_IN, *) pb%beta, pb%smu, pb%lam, pb%D, pb%H, pb%ot%v_th
@@ -67,7 +67,27 @@ subroutine read_main(pb)
   read(FID_IN, *) pb%DYN_FLAG, pb%DYN_SKIP
   read(FID_IN, *) pb%DYN_M, pb%DYN_th_on, pb%DYN_th_off
   read(FID_IN, *) FAULT_TYPE, SOLVER_TYPE
-
+  
+  ! In case of fluid diffusion, read the number of source
+  if (pb%features%fluid_diff == 1) then
+      read(FID_IN, *) pb%fluid_diff%nb_source
+      ! If there are some source, allocate and read the associated parameters
+      if (pb%fluid_diff%nb_source>=1) then
+          ! Allocate the arrays
+          allocate( pb%fluid_diff%t_injection_beg(pb%fluid_diff%nb_source),  &
+                    pb%fluid_diff%t_injection_end(pb%fluid_diff%nb_source),  &
+                    pb%fluid_diff%index_injection(pb%fluid_diff%nb_source),  &
+                    pb%fluid_diff%Q(pb%fluid_diff%nb_source))
+          
+          ! Read the parameters
+          read(FID_IN, *) pb%fluid_diff%Q
+          read(FID_IN, *) pb%fluid_diff%index_injection
+          read(FID_IN, *) pb%fluid_diff%t_injection_beg
+          read(FID_IN, *) pb%fluid_diff%t_injection_end
+          
+      endif
+  endif
+  
   call log_msg("  Flags input complete")
 
   n = mesh_get_size(pb%mesh) ! number of nodes in this processor
@@ -180,7 +200,7 @@ subroutine read_main(pb)
     ! Precompute 1/a to avoid many divisions later on
     pb%inv_a = 1.0 / pb%a
   endif
-
+    
   ! <SEISMIC>
   ! Read input parameters for the localisation model (CNS only).
   ! These parameters and corresponding units are (in order):
@@ -232,6 +252,7 @@ subroutine read_main(pb)
       pb%theta2(i) = 0d0
     end do
   endif
+
   ! End reading localisation model parameters
   ! </SEISMIC>
 
@@ -259,11 +280,44 @@ subroutine read_main(pb)
                       pb%tp%P_a(i), pb%tp%T_a(i), pb%tp%dilat_factor(i)
     end do
   endif
+  
   ! End reading TP model parameters
   ! </SEISMIC>
 
+  !#########################################################################################
+  ! Read input parameters for the fluid diffusion model. 
+  if (pb%features%fluid_diff == 1) then
+
+    allocate (  pb%fluid_diff%rhof(n), pb%fluid_diff%beta(n), pb%fluid_diff%eta(n), &
+                pb%fluid_diff%phi(n), pb%fluid_diff%permeability(n),pb%fluid_diff%P_a(n), &
+                pb%fluid_diff%P_temp(n), pb%fluid_diff%P_dot_temp(n))
+                
+    allocate (pb%fluid_diff%permeability_x(n+1)) ! Permeability at the interface 
+    do i=1,n
+      read(FID_IN, *) pb%fluid_diff%rhof(i), pb%fluid_diff%beta(i), pb%fluid_diff%eta(i), &
+                      pb%fluid_diff%phi(i),  pb%fluid_diff%permeability(i), pb%fluid_diff%P_a(i) 
+    end do
+  endif
+  
+  !#########################################################################################
+  ! Read input parameters for the variable permeability model. 
+  
+  if (pb%features%var_k == 1) then
+
+    allocate (  pb%var_k%kmin(n), pb%var_k%kmax(n), pb%var_k%L1(n), &
+                pb%var_k%T1(n),pb%var_k%kstar(n),pb%var_k%Snk(n),pb%var_k%dkstar_dt(n))
+                
+    do i=1,n
+      read(FID_IN, *) pb%var_k%kmin(i), pb%var_k%kmax(i), pb%var_k%L1(i), &
+                       pb%var_k%T1(i),pb%var_k%Snk(i)
+    end do
+  endif
+  
+  !#########################################################################################
+ 
   ! CRP: Instead, call read_mesh_nodes for all mesh types so the fault label can
   ! be written in the outputs for all fault dimensionalities
+
   call read_mesh_nodes(FID_IN, pb%mesh)
 
   ! Overwrite slip if restart with time and slip of last simulation
